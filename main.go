@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 )
 
 type scale struct {
@@ -23,7 +24,6 @@ func shiftScale(x uint16, i int) uint16 {
 	const nn = 12
 	const mask = 0xfff
 	var u uint
-	i = -i
 	if i < 0 {
 		i = -i
 		u = nn - (uint(i % nn))
@@ -64,15 +64,22 @@ func noteName(i int) string {
 
 func findScale(x uint16) []string {
 	var r []string
-
 	s := scaleList()
-	for i := 0; i < len(s); i++ {
-		for k := 0; k < 12; k++ {
-			if (s[i].s & shiftScale(x, -k)) == shiftScale(x, -k) {
-				r = append(r, noteName(k)+" "+s[i].n+"\n")
+	var wg sync.WaitGroup
+
+	for i := 0; i < len(s); i += 1 {
+		wg.Add(1)
+		go func(i int, r *[]string) {
+			for k := 0; k < 12; k += 1 {
+				a := shiftScale(x, k)
+				if (s[i].s & a) == a {
+					*r = append(*r, noteName(k)+" "+s[i].n+"\n")
+				}
 			}
-		}
+			wg.Done()
+		}(i, &r)
 	}
+	wg.Wait()
 	return r
 }
 
